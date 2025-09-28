@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # MAP TCAP Hex Stream Generator
 
 ## Overview
@@ -98,8 +97,3 @@ Manual testing is recommended: generate a hex stream with known parameters and c
 | `06 C0`              | 2 bits used (bits 1,2)   | v2 + v3                  |
 | `05 E0`              | 3 bits used (bits 0,1,2) | v1 + v2 + v3             |
 | `07 20`              | 1 bit used (bit 1)       | v2 only                  |
-
-
-=======
-# MAP-TCAP_Hex_Stream_Generator
->>>>>>> 83e17706c8c50415552ea21435f8c1f1dac7b007
