@@ -499,6 +499,175 @@
           return hex;
         };
 
+        const encodeSmsTextToTpdu = (text, senderNumber, recipientNumber, isMoForward = true) => {
+          if (!text || text.length === 0) {
+            throw new Error("SMS text content is required");
+          }
+          if (!senderNumber || !recipientNumber) {
+            throw new Error("Sender and recipient numbers are required for SMS TPDU encoding");
+          }
+
+          // Convert text to GSM 7-bit default alphabet (basic ASCII subset)
+          const gsm7bitChars = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+          const gsm7bitExtChars = "^{}\\[~]|€";
+          
+          // Check if text contains only GSM 7-bit characters
+          let useGsm7bit = true;
+          for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            if (gsm7bitChars.indexOf(char) === -1 && gsm7bitExtChars.indexOf(char) === -1) {
+              useGsm7bit = false;
+              break;
+            }
+          }
+
+          let tpdu = "";
+          
+          if (isMoForward) {
+            // SMS-SUBMIT format for MO-ForwardSM
+            tpdu += "11"; // TP-MTI=01 (SMS-SUBMIT), TP-VPF=00 (no validity period), TP-RD=0, TP-MPR=0, TP-UDHI=0, TP-SRR=0
+            
+            // TP-MR (Message Reference) - 2 bytes, set to 0000
+            tpdu += "0000";
+            
+            // TP-DA (Destination Address) - recipient number
+            const recipientTbcd = encodeDigitsToTbcd(recipientNumber);
+            const recipientLength = Math.ceil(recipientNumber.length / 2);
+            tpdu += toHex(recipientLength, 1); // Address length in semi-octets
+            tpdu += "91"; // TON/NPI: International number
+            tpdu += recipientTbcd;
+            
+            // TP-PID (Protocol Identifier)
+            tpdu += "00";
+            
+            // TP-DCS (Data Coding Scheme)
+            if (useGsm7bit) {
+              tpdu += "00"; // GSM 7-bit default alphabet
+            } else {
+              tpdu += "08"; // UCS2 (16-bit)
+            }
+            
+            // TP-UDL (User Data Length)
+            let userDataHex;
+            if (useGsm7bit) {
+              // Encode as GSM 7-bit
+              userDataHex = encodeGsm7bit(text);
+              tpdu += toHex(text.length, 1);
+            } else {
+              // Encode as UCS2
+              userDataHex = encodeUcs2(text);
+              tpdu += toHex(userDataHex.length / 2, 1);
+            }
+            
+            // TP-UD (User Data)
+            tpdu += userDataHex;
+            
+          } else {
+            // SMS-DELIVER format for MT-ForwardSM
+            tpdu += "04"; // TP-MTI=00 (SMS-DELIVER), TP-MMS=0, TP-LP=0, TP-RP=0, TP-UDHI=0, TP-SRI=0
+            
+            // TP-OA (Originating Address) - sender number
+            const senderTbcd = encodeDigitsToTbcd(senderNumber);
+            const senderLength = Math.ceil(senderNumber.length / 2);
+            tpdu += toHex(senderLength, 1); // Address length in semi-octets
+            tpdu += "91"; // TON/NPI: International number
+            tpdu += senderTbcd;
+            
+            // TP-PID (Protocol Identifier)
+            tpdu += "00";
+            
+            // TP-DCS (Data Coding Scheme)
+            if (useGsm7bit) {
+              tpdu += "00"; // GSM 7-bit default alphabet
+            } else {
+              tpdu += "08"; // UCS2 (16-bit)
+            }
+            
+            // TP-SCTS (Service Centre Time Stamp) - 7 bytes, set to current time or default
+            const now = new Date();
+            const year = (now.getFullYear() % 100).toString().padStart(2, '0');
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hour = now.getHours().toString().padStart(2, '0');
+            const minute = now.getMinutes().toString().padStart(2, '0');
+            const second = now.getSeconds().toString().padStart(2, '0');
+            const timezone = "00"; // UTC+0
+            tpdu += encodeDigitsToTbcd(year + month + day + hour + minute + second + timezone);
+            
+            // TP-UDL (User Data Length)
+            let userDataHex;
+            if (useGsm7bit) {
+              // Encode as GSM 7-bit
+              userDataHex = encodeGsm7bit(text);
+              tpdu += toHex(text.length, 1);
+            } else {
+              // Encode as UCS2
+              userDataHex = encodeUcs2(text);
+              tpdu += toHex(userDataHex.length / 2, 1);
+            }
+            
+            // TP-UD (User Data)
+            tpdu += userDataHex;
+          }
+          
+          return tpdu;
+        };
+
+        const encodeGsm7bit = (text) => {
+          const gsm7bitChars = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+          const gsm7bitExtChars = "^{}\\[~]|€";
+          
+          let result = "";
+          for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            let charCode = gsm7bitChars.indexOf(char);
+            if (charCode === -1) {
+              // Check for extended characters
+              const extIndex = gsm7bitExtChars.indexOf(char);
+              if (extIndex !== -1) {
+                // Extended character - use escape sequence
+                result += "1b" + toHex(extIndex, 1);
+              } else {
+                // Fallback to space for unsupported characters
+                charCode = gsm7bitChars.indexOf(' ');
+              }
+            }
+            if (charCode !== -1) {
+              result += toHex(charCode, 1);
+            }
+          }
+          
+          // Pack 7-bit characters into 8-bit bytes
+          let packed = "";
+          let bits = "";
+          for (let i = 0; i < result.length; i += 2) {
+            bits += parseInt(result.substr(i, 2), 16).toString(2).padStart(8, '0');
+          }
+          
+          // Pad to multiple of 7
+          while (bits.length % 7 !== 0) {
+            bits += "0";
+          }
+          
+          // Pack 7-bit groups into 8-bit bytes
+          for (let i = 0; i < bits.length; i += 7) {
+            const group = bits.substr(i, 7);
+            const byte = parseInt(group, 2);
+            packed += toHex(byte, 1);
+          }
+          
+          return packed;
+        };
+
+        const encodeUcs2 = (text) => {
+          let result = "";
+          for (let i = 0; i < text.length; i++) {
+            const charCode = text.charCodeAt(i);
+            result += toHex(charCode, 2);
+          }
+          return result;
+        };
+
         const parseNumber = (value) => {
           if (value === null || value === undefined || value === "") {
             return null;
@@ -537,6 +706,7 @@
           encodeIsdn,
           encodeInteger,
           sanitizeHex,
+          encodeSmsTextToTpdu,
         };
 
         const applicationContexts = [
@@ -805,11 +975,40 @@
                 required: true,
               },
               {
+                id: "smsContentMode",
+                label: "SMS Content Input Mode",
+                type: "select",
+                options: [
+                  { value: "hex", label: "SM-RP-UI (TPDU hex)" },
+                  { value: "text", label: "SMS Text (ASCII)" },
+                ],
+                default: "text",
+                help: "Choose between entering raw TPDU hex or clear ASCII text.",
+              },
+              {
                 id: "smRpUi",
                 label: "SM-RP-UI (TPDU hex)",
                 type: "hex",
-                required: true,
+                required: false,
                 placeholder: "e.g. 0011000b915121551236f40000...",
+                dependsOn: { field: "smsContentMode", value: "hex" },
+              },
+              {
+                id: "smsText",
+                label: "SMS Text Content",
+                type: "textarea",
+                required: false,
+                placeholder: "Enter your SMS message text here...",
+                dependsOn: { field: "smsContentMode", value: "text" },
+              },
+              {
+                id: "senderNumber",
+                label: "Sender Number (for text mode)",
+                type: "isdn",
+                defaultTon: "91",
+                required: false,
+                help: "Required when using SMS text mode.",
+                dependsOn: { field: "smsContentMode", value: "text" },
               },
             ],
             buildParams(values) {
@@ -851,13 +1050,35 @@
               );
               content.push(rpOa);
 
-              const smRpUi = sanitizeHex(values.smRpUi || "");
-              if (!smRpUi) {
-                throw new Error("SM-RP-UI hex is required");
+              // Handle SMS content based on input mode
+              const smsContentMode = values.smsContentMode || "text";
+              let smRpUi;
+              
+              if (smsContentMode === "hex") {
+                smRpUi = sanitizeHex(values.smRpUi || "");
+                if (!smRpUi) {
+                  throw new Error("SM-RP-UI hex is required when using hex mode");
+                }
+                if (smRpUi.length % 2 !== 0) {
+                  throw new Error("SM-RP-UI hex must have an even number of characters");
+                }
+              } else {
+                // Text mode - convert ASCII text to TPDU
+                if (!values.smsText) {
+                  throw new Error("SMS text content is required when using text mode");
+                }
+                if (!values.senderNumber) {
+                  throw new Error("Sender number is required when using text mode");
+                }
+                
+                const recipientNumber = choice === "msisdn" ? values.destinationMsisdn : values.destinationImsi;
+                if (!recipientNumber) {
+                  throw new Error("Recipient number is required for SMS text encoding");
+                }
+                
+                smRpUi = encodeSmsTextToTpdu(values.smsText, values.senderNumber, recipientNumber, true);
               }
-              if (smRpUi.length % 2 !== 0) {
-                throw new Error("SM-RP-UI hex must have an even number of characters");
-              }
+              
               content.push(tlv("04", smRpUi));
 
               const customHex = sanitizeHex(values.customParameterHex || "");
@@ -907,10 +1128,39 @@
                 required: true,
               },
               {
+                id: "smsContentMode",
+                label: "SMS Content Input Mode",
+                type: "select",
+                options: [
+                  { value: "hex", label: "SM-RP-UI (TPDU hex)" },
+                  { value: "text", label: "SMS Text (ASCII)" },
+                ],
+                default: "text",
+                help: "Choose between entering raw TPDU hex or clear ASCII text.",
+              },
+              {
                 id: "smRpUi",
                 label: "SM-RP-UI (TPDU hex)",
                 type: "hex",
-                required: true,
+                required: false,
+                dependsOn: { field: "smsContentMode", value: "hex" },
+              },
+              {
+                id: "smsText",
+                label: "SMS Text Content",
+                type: "textarea",
+                required: false,
+                placeholder: "Enter your SMS message text here...",
+                dependsOn: { field: "smsContentMode", value: "text" },
+              },
+              {
+                id: "senderNumber",
+                label: "Sender Number (for text mode)",
+                type: "isdn",
+                defaultTon: "91",
+                required: false,
+                help: "Required when using SMS text mode.",
+                dependsOn: { field: "smsContentMode", value: "text" },
               },
               {
                 id: "moreMessagesToSend",
@@ -957,13 +1207,35 @@
               );
               content.push(rpOa);
 
-              const smRpUi = sanitizeHex(values.smRpUi || "");
-              if (!smRpUi) {
-                throw new Error("SM-RP-UI hex is required");
+              // Handle SMS content based on input mode
+              const smsContentMode = values.smsContentMode || "text";
+              let smRpUi;
+              
+              if (smsContentMode === "hex") {
+                smRpUi = sanitizeHex(values.smRpUi || "");
+                if (!smRpUi) {
+                  throw new Error("SM-RP-UI hex is required when using hex mode");
+                }
+                if (smRpUi.length % 2 !== 0) {
+                  throw new Error("SM-RP-UI hex must have an even number of characters");
+                }
+              } else {
+                // Text mode - convert ASCII text to TPDU
+                if (!values.smsText) {
+                  throw new Error("SMS text content is required when using text mode");
+                }
+                if (!values.senderNumber) {
+                  throw new Error("Sender number is required when using text mode");
+                }
+                
+                const recipientNumber = choice === "msisdn" ? values.destinationMsisdn : values.destinationImsi;
+                if (!recipientNumber) {
+                  throw new Error("Recipient number is required for SMS text encoding");
+                }
+                
+                smRpUi = encodeSmsTextToTpdu(values.smsText, values.senderNumber, recipientNumber, false);
               }
-              if (smRpUi.length % 2 !== 0) {
-                throw new Error("SM-RP-UI hex must have an even number of characters");
-              }
+              
               content.push(tlv("04", smRpUi));
 
               if (values.moreMessagesToSend) {
