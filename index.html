@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MAP TCAP Hex Stream Generator</title>
+    <style>
+      :root {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        color-scheme: light dark;
+      }
+
+      body {
+        margin: 0;
+        background: #f5f7fa;
+        color: #1f2933;
+      }
+
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 32px 24px 64px;
+        box-sizing: border-box;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      p.lead {
+        margin: 0 0 24px;
+        color: #475569;
+      }
+
+      form {
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+        padding: 24px;
+        margin-bottom: 28px;
+      }
+
+      fieldset {
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .field {
+        flex: 1 1 220px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .field.full {
+        flex-basis: 100%;
+      }
+
+      label {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #111827;
+      }
+
+      input[type="text"],
+      input[type="number"],
+      textarea,
+      select {
+        border: 1px solid #cbd5f1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      textarea {
+        min-height: 90px;
+        resize: vertical;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+        outline: none;
+      }
+
+      .checkbox-field {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .checkbox-field label {
+        margin: 0;
+        font-weight: 500;
+      }
+
+      .help {
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 4px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 10px 20px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.2s ease;
+      }
+
+      button.primary {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+      }
+
+      button.secondary {
+        background: #e2e8f0;
+        color: #1e293b;
+      }
+
+      button:active {
+        transform: translateY(1px);
+        box-shadow: none;
+      }
+
+      #output-card {
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.48);
+      }
+
+      #hex-output {
+        width: 100%;
+        min-height: 140px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        background: rgba(15, 23, 42, 0.72);
+        color: #f8fafc;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.92rem;
+        padding: 14px;
+        line-height: 1.4;
+        box-sizing: border-box;
+      }
+
+      #hex-output:focus {
+        outline: none;
+        border-color: rgba(99, 102, 241, 0.8);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+      }
+
+      .breakdown {
+        margin-top: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .breakdown-block {
+        background: rgba(15, 23, 42, 0.55);
+        padding: 12px;
+        border-radius: 10px;
+      }
+
+      .breakdown-block h3 {
+        margin: 0 0 6px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .breakdown-block code {
+        display: block;
+        white-space: pre-wrap;
+        word-break: break-all;
+        color: #cbd5f5;
+      }
+
+      .alert {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(253, 230, 138, 0.18);
+        color: #854d0e;
+        border: 1px solid rgba(250, 204, 21, 0.45);
+        font-size: 0.9rem;
+      }
+
+      .success {
+        margin-top: 16px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: rgba(187, 247, 208, 0.18);
+        color: #166534;
+        border: 1px solid rgba(74, 222, 128, 0.45);
+        font-size: 0.9rem;
+      }
+
+      .isdn-group {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+      }
+
+      .isdn-group .ton-field {
+        max-width: 120px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 768px) {
+        .row {
+          flex-direction: column;
+        }
+
+        .isdn-group {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>MAP TCAP Hex Stream Generator</h1>
+      <p class="lead">
+        Provide MAP call parameters in clear text and generate a TCAP Begin in hex.
+        Adjust values to match your network profile and copy the result directly to
+        your simulator.
+      </p>
+
+      <form id="tcap-form" autocomplete="off">
+        <fieldset>
+          <div class="row">
+            <div class="field">
+              <label for="operation">MAP Operation</label>
+              <select id="operation" name="operation"></select>
+              <div class="help">Select the MAP operation to invoke.</div>
+            </div>
+
+            <div class="field">
+              <label for="operation-code">Operation Code</label>
+              <input
+                id="operation-code"
+                name="operationCode"
+                type="text"
+                placeholder="Decimal or hex (e.g. 2 or 0x02)"
+              />
+              <div class="help">Override if you need a different code.</div>
+            </div>
+
+            <div class="field">
+              <label for="invoke-id">Invoke ID</label>
+              <input
+                id="invoke-id"
+                name="invokeId"
+                type="number"
+                min="0"
+                max="255"
+                step="1"
+              />
+              <div class="help">Defaults to 0 if left empty.</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field">
+              <label for="otid">Originating TID (hex)</label>
+              <input
+                id="otid"
+                name="otid"
+                type="text"
+                placeholder="8 hex chars"
+              />
+              <div class="help">4-byte hex value, e.g. 621508f7.</div>
+            </div>
+
+            <div class="field">
+              <label for="application-context">Application Context</label>
+              <select id="application-context" name="applicationContext"></select>
+              <input
+                id="application-context-custom"
+                name="applicationContextCustom"
+                type="text"
+                class="hidden"
+                placeholder="Enter custom OID (e.g. 0.4.0.0.1.0.1.3)"
+              />
+              <div class="help">
+                Choose the MAP Application Context. Select Custom to supply a different OID.
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="protocol-version">MAP Protocol Version (hex)</label>
+              <input
+                id="protocol-version"
+                name="protocolVersion"
+                type="text"
+                placeholder="0780"
+              />
+              <div class="help">Bitmask used in the AARQ: default 0x0780 (version 3).</div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field full">
+              <label>Operation Parameters</label>
+              <div id="operation-fields" class="parameters"></div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="field full">
+              <label for="custom-parameter-hex">Custom Parameter Hex (optional)</label>
+              <textarea
+                id="custom-parameter-hex"
+                name="customParameterHex"
+                placeholder="Raw hex appended inside the MAP argument SEQUENCE."
+              ></textarea>
+              <div class="help">
+                Use this to inject additional TLVs that are not exposed in the form.
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="primary">Generate Hex Stream</button>
+            <button type="button" class="secondary" id="copy-hex">Copy Hex</button>
+            <button type="button" class="secondary" id="reset-form">Reset</button>
+          </div>
+        </fieldset>
+      </form>
+
+      <section id="output-card">
+        <textarea id="hex-output" readonly placeholder="Hex stream will appear here"></textarea>
+        <div id="status"></div>
+        <div class="breakdown" id="breakdown"></div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const toHex = (value, length = 2) => {
+          const num = Number(value);
+          if (!Number.isFinite(num)) {
+            throw new Error(`Invalid number: ${value}`);
+          }
+          return num.toString(16).padStart(length, "0");
+        };
+
+        const encodeLength = (length) => {
+          if (length < 0x80) {
+            return toHex(length);
+          }
+          let hex = length.toString(16);
+          if (hex.length % 2 !== 0) {
+            hex = "0" + hex;
+          }
+          const lengthBytes = hex.length / 2;
+          return toHex(0x80 + lengthBytes) + hex;
+        };
+
+        const sanitizeHex = (value) => (value || "").replace(/[^0-9a-f]/gi, "").toLowerCase();
+
+        const tlv = (tag, valueHex) => {
+          const sanitizedTag = sanitizeHex(tag);
+          const sanitizedValue = sanitizeHex(valueHex);
+          if (!sanitizedTag) {
+            throw new Error("Tag is required for TLV encoding");
+          }
+          if (sanitizedValue.length % 2 !== 0) {
+            throw new Error(`Value for tag ${tag} must have an even number of hex digits`);
+          }
+          const lengthHex = encodeLength(sanitizedValue.length / 2);
+          return sanitizedTag + lengthHex + sanitizedValue;
+        };
+
+        const encodeOid = (oidString) => {
+          if (!oidString) {
+            throw new Error("Application Context OID is required");
+          }
+          const parts = oidString
+            .split(".")
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => {
+              const num = Number(part);
+              if (!Number.isInteger(num) || num < 0) {
+                throw new Error(`Invalid OID component: ${part}`);
+              }
+              return num;
+            });
+          if (parts.length < 2) {
+            throw new Error("OID must have at least two components");
+          }
+          const bytes = [];
+          bytes.push(parts[0] * 40 + parts[1]);
+          for (let i = 2; i < parts.length; i += 1) {
+            let value = parts[i];
+            if (value === 0) {
+              bytes.push(0x00);
+            } else {
+              const stack = [];
+              while (value > 0) {
+                stack.unshift(value & 0x7f);
+                value >>= 7;
+              }
+              stack.forEach((segment, index) => {
+                if (index !== stack.length - 1) {
+                  bytes.push(segment | 0x80);
+                } else {
+                  bytes.push(segment);
+                }
+              });
+            }
+          }
+          return bytes.map((b) => toHex(b)).join("");
+        };
+
+        const encodeDigitsToTbcd = (digits, padWithF = true) => {
+          const cleaned = (digits || "").replace(/\D/g, "");
+          if (!cleaned) {
+            throw new Error("Digit string is empty");
+          }
+          const chars = cleaned.split("");
+          if (padWithF && chars.length % 2 !== 0) {
+            chars.push("f");
+          }
+          let result = "";
+          for (let i = 0; i < chars.length; i += 2) {
+            const low = chars[i];
+            const high = chars[i + 1] || "f";
+            result += high + low;
+          }
+          return result.toLowerCase();
+        };
+
+        const encodeImsi = (imsi) => encodeDigitsToTbcd(imsi);
+
+        const encodeIsdn = (digits, tonHex = "91") => {
+          const cleanedTon = sanitizeHex(tonHex) || "91";
+          const ton = cleanedTon.length === 2 ? cleanedTon : cleanedTon.slice(-2);
+          const tbcd = encodeDigitsToTbcd(digits);
+          return ton + tbcd;
+        };
+
+        const encodeInteger = (value) => {
+          if (value === "") {
+            throw new Error("Integer value missing");
+          }
+          const num = typeof value === "number" ? value : Number(value);
+          if (!Number.isInteger(num) || num < 0) {
+            throw new Error(`Invalid integer: ${value}`);
+          }
+          if (num === 0) {
+            return "00";
+          }
+          let hex = num.toString(16);
+          if (hex.length % 2 !== 0) {
+            hex = "0" + hex;
+          }
+          const msb = parseInt(hex.slice(0, 2), 16);
+          if (msb & 0x80) {
+            hex = "00" + hex;
+          }
+          return hex;
+        };
+
+        const parseNumber = (value) => {
+          if (value === null || value === undefined || value === "") {
+            return null;
+          }
+          const trimmed = value.toString().trim().toLowerCase();
+          if (trimmed.startsWith("0x")) {
+            return parseInt(trimmed, 16);
+          }
+          if (/^0[0-9]+$/.test(trimmed)) {
+            return parseInt(trimmed, 10);
+          }
+          const num = Number(trimmed);
+          if (!Number.isFinite(num)) {
+            throw new Error(`Unable to parse numeric value: ${value}`);
+          }
+          return num;
+        };
+
+        const chunkHex = (hex, group = 2) => {
+          const chunks = [];
+          for (let i = 0; i < hex.length; i += group) {
+            chunks.push(hex.slice(i, i + group));
+          }
+          return chunks.join(" ");
+        };
+
+        const defaultOtid = () => {
+          const bytes = new Uint8Array(4);
+          window.crypto.getRandomValues(bytes);
+          return Array.from(bytes, (b) => toHex(b)).join("");
+        };
+
+        const helpers = {
+          tlv,
+          encodeImsi,
+          encodeIsdn,
+          encodeInteger,
+          sanitizeHex,
+        };
+
+        const applicationContexts = [
+          { label: "networkLocUpContext-v3", value: "0.4.0.0.1.0.1.3" },
+          { label: "locationCancellationContext-v3", value: "0.4.0.0.1.0.1.1.1.2.3" },
+          { label: "roamingNumberEnquiryContext-v3", value: "0.4.0.0.1.0.1.1.1.3.3" },
+          { label: "interVlrInfoRetrievalContext-v3", value: "0.4.0.0.1.0.1.1.1.4.3" },
+          { label: "msPurgingContext-v3", value: "0.4.0.0.1.0.1.1.1.5.3" },
+          { label: "subscriberDataMngtContext-v3", value: "0.4.0.0.1.0.1.1.1.6.3" },
+          { label: "authenticationFailureReportContext-v3", value: "0.4.0.0.1.0.1.1.1.7.3" },
+          { label: "resetContext-v3", value: "0.4.0.0.1.0.1.1.1.8.3" },
+          { label: "alertingContext-v3", value: "0.4.0.0.1.0.1.1.1.9.3" },
+          { label: "readyForSMContext-v3", value: "0.4.0.0.1.0.1.1.1.10.3" },
+          { label: "moForwardSMContext-v3", value: "0.4.0.0.1.0.1.1.1.11.3" },
+          { label: "mtForwardSMContext-v3", value: "0.4.0.0.1.0.1.1.1.12.3" },
+          { label: "reportSM-DeliveryStatusContext-v3", value: "0.4.0.0.1.0.1.1.1.13.3" },
+          { label: "reportSM-DeliveryOutcomeContext-v3", value: "0.4.0.0.1.0.1.1.1.14.3" },
+          { label: "istAlertingContext-v3", value: "0.4.0.0.1.0.1.1.1.21.3" },
+          { label: "callControlTransferContext-v3", value: "0.4.0.0.1.0.1.1.1.25.3" },
+          { label: "Custom", value: "__custom__" },
+        ];
+
+        const operations = {
+          updateLocation: {
+            label: "updateLocation",
+            defaultCode: 2,
+            defaultAppContext: "0.4.0.0.1.0.1.3",
+            description: "Send MAP UpdateLocation (v3) argument",
+            fields: [
+              {
+                id: "imsi",
+                label: "IMSI",
+                type: "imsi",
+                placeholder: "15 digits",
+                required: true,
+                help: "Digits only. Encoded as TBCD (swap nibbles).",
+                tag: "04",
+              },
+              {
+                id: "mscNumber",
+                label: "MSC Number",
+                type: "isdn",
+                placeholder: "Digits only",
+                required: true,
+                defaultTon: "91",
+                help: "ISDN address string for MSC (default TON 0x91).",
+                tag: "80",
+              },
+              {
+                id: "vlrNumber",
+                label: "VLR Number",
+                type: "isdn",
+                placeholder: "Digits only",
+                required: false,
+                defaultTon: "91",
+                help: "Optional VLR address string (default TON 0x91).",
+                tag: "81",
+              },
+              {
+                id: "includeVlrCapability",
+                label: "Include default VLR capability (a6 0a ...)",
+                type: "checkbox",
+                default: true,
+              },
+            ],
+            buildParams(values) {
+              const content = [];
+              if (!values.imsi) {
+                throw new Error("IMSI is required for updateLocation");
+              }
+              content.push(tlv("04", encodeImsi(values.imsi)));
+              if (values.mscNumber) {
+                const mscHex = encodeIsdn(values.mscNumber, values.mscNumberTon || "91");
+                content.push(tlv("81", mscHex));
+              }
+              if (values.vlrNumber) {
+                const vlrHex = encodeIsdn(values.vlrNumber, values.vlrNumberTon || "91");
+                content.push(tlv("04", vlrHex));
+              }
+              if (values.includeVlrCapability) {
+                content.push("a60a800205e0850205e08900");
+              }
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+              return tlv("30", content.join(""));
+            },
+          },
+          sendAuthenticationInfo: {
+            label: "sendAuthenticationInfo",
+            defaultCode: 56,
+            defaultAppContext: "0.4.0.0.1.0.1.3",
+            description: "Request authentication vectors from HLR",
+            fields: [
+              {
+                id: "imsi",
+                label: "IMSI",
+                type: "imsi",
+                placeholder: "Digits",
+                required: true,
+                tag: "04",
+              },
+              {
+                id: "numVectors",
+                label: "Number of requested vectors",
+                type: "number",
+                placeholder: "1-5",
+                min: 1,
+                max: 5,
+                required: true,
+                help: "Integer encoded as ASN.1 INTEGER.",
+              },
+              {
+                id: "includeImmediateResponse",
+                label: "Set immediateResponsePreferred",
+                type: "checkbox",
+                default: false,
+              },
+            ],
+            buildParams(values) {
+              if (!values.imsi) {
+                throw new Error("IMSI is required for sendAuthenticationInfo");
+              }
+              const content = [tlv("04", encodeImsi(values.imsi))];
+              if (values.numVectors !== undefined && values.numVectors !== "") {
+                content.push(tlv("02", encodeInteger(values.numVectors)));
+              }
+              if (values.includeImmediateResponse) {
+                content.push("800100");
+              }
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+              return tlv("30", content.join(""));
+            },
+          },
+          sendRoutingInfo: {
+            label: "sendRoutingInfo",
+            defaultCode: 22,
+            defaultAppContext: "0.4.0.0.1.0.1.1.1.3.3",
+            description: "Query routing info for terminating call",
+            fields: [
+              {
+                id: "msisdn",
+                label: "MSISDN",
+                type: "isdn",
+                placeholder: "Digits",
+                required: true,
+                defaultTon: "91",
+                tag: "04",
+              },
+              {
+                id: "cugCheck",
+                label: "Include CUG check info",
+                type: "checkbox",
+                default: false,
+              },
+            ],
+            buildParams(values) {
+              if (!values.msisdn) {
+                throw new Error("MSISDN is required for sendRoutingInfo");
+              }
+              const content = [
+                tlv("04", encodeIsdn(values.msisdn, values.msisdnTon || "91")),
+              ];
+              if (values.cugCheck) {
+                content.push("a007800105000000");
+              }
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+              return tlv("30", content.join(""));
+            },
+          },
+          sendRoutingInfoForSM: {
+            label: "sendRoutingInfoForSM",
+            defaultCode: 45,
+            defaultAppContext: "0.4.0.0.1.0.1.1.1.10.3",
+            description: "Query routing info for MT SMS",
+            fields: [
+              {
+                id: "msisdn",
+                label: "MSISDN",
+                type: "isdn",
+                defaultTon: "91",
+                required: true,
+                tag: "04",
+              },
+              {
+                id: "serviceCentreAddress",
+                label: "Service Centre Address",
+                type: "isdn",
+                defaultTon: "91",
+                required: true,
+                tag: "80",
+              },
+            ],
+            buildParams(values) {
+              if (!values.msisdn) {
+                throw new Error("MSISDN is required for sendRoutingInfoForSM");
+              }
+              if (!values.serviceCentreAddress) {
+                throw new Error("Service Centre Address is required");
+              }
+              const content = [];
+              content.push(
+                tlv("04", encodeIsdn(values.msisdn, values.msisdnTon || "91"))
+              );
+              content.push(
+                tlv(
+                  "80",
+                  encodeIsdn(
+                    values.serviceCentreAddress,
+                    values.serviceCentreAddressTon || "91"
+                  )
+                )
+              );
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+              return tlv("30", content.join(""));
+            },
+          },
+          moForwardSM: {
+            label: "mo-forwardSM",
+            defaultCode: 46,
+            defaultAppContext: "0.4.0.0.1.0.1.1.1.11.3",
+            description: "Mobile originated forward short message",
+            fields: [
+              {
+                id: "destinationChoice",
+                label: "RP-DA choice",
+                type: "select",
+                options: [
+                  { value: "msisdn", label: "MSISDN" },
+                  { value: "imsi", label: "IMSI" },
+                ],
+                default: "msisdn",
+              },
+              {
+                id: "destinationMsisdn",
+                label: "Destination MSISDN",
+                type: "isdn",
+                defaultTon: "91",
+                required: false,
+                tag: "a1",
+                help: "Used when RP-DA choice is MSISDN.",
+                dependsOn: { field: "destinationChoice", value: "msisdn" },
+              },
+              {
+                id: "destinationImsi",
+                label: "Destination IMSI",
+                type: "imsi",
+                required: false,
+                dependsOn: { field: "destinationChoice", value: "imsi" },
+              },
+              {
+                id: "serviceCentreAddress",
+                label: "Service Centre Address (RP-OA)",
+                type: "isdn",
+                defaultTon: "91",
+                required: true,
+              },
+              {
+                id: "smRpUi",
+                label: "SM-RP-UI (TPDU hex)",
+                type: "hex",
+                required: true,
+                placeholder: "e.g. 0011000b915121551236f40000...",
+              },
+            ],
+            buildParams(values) {
+              const content = [];
+              const choice = values.destinationChoice || "msisdn";
+              if (choice === "imsi") {
+                if (!values.destinationImsi) {
+                  throw new Error("Destination IMSI is required for RP-DA IMSI");
+                }
+                const imsiTlv = tlv("80", encodeImsi(values.destinationImsi));
+                content.push(tlv("a0", imsiTlv));
+              } else {
+                if (!values.destinationMsisdn) {
+                  throw new Error("Destination MSISDN is required for RP-DA MSISDN");
+                }
+                const msisdnTlv = tlv(
+                  "04",
+                  encodeIsdn(
+                    values.destinationMsisdn,
+                    values.destinationMsisdnTon || "91"
+                  )
+                );
+                content.push(tlv("a1", msisdnTlv));
+              }
+
+              if (!values.serviceCentreAddress) {
+                throw new Error("Service Centre Address is required");
+              }
+
+              const rpOa = tlv(
+                "a2",
+                tlv(
+                  "04",
+                  encodeIsdn(
+                    values.serviceCentreAddress,
+                    values.serviceCentreAddressTon || "91"
+                  )
+                )
+              );
+              content.push(rpOa);
+
+              const smRpUi = sanitizeHex(values.smRpUi || "");
+              if (!smRpUi) {
+                throw new Error("SM-RP-UI hex is required");
+              }
+              if (smRpUi.length % 2 !== 0) {
+                throw new Error("SM-RP-UI hex must have an even number of characters");
+              }
+              content.push(tlv("04", smRpUi));
+
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+
+              return tlv("30", content.join(""));
+            },
+          },
+          mtForwardSM: {
+            label: "mt-forwardSM",
+            defaultCode: 44,
+            defaultAppContext: "0.4.0.0.1.0.1.1.1.12.3",
+            description: "Mobile terminated forward short message",
+            fields: [
+              {
+                id: "destinationChoice",
+                label: "RP-DA choice",
+                type: "select",
+                options: [
+                  { value: "imsi", label: "IMSI" },
+                  { value: "msisdn", label: "MSISDN" },
+                ],
+                default: "imsi",
+              },
+              {
+                id: "destinationImsi",
+                label: "Destination IMSI",
+                type: "imsi",
+                required: false,
+                dependsOn: { field: "destinationChoice", value: "imsi" },
+              },
+              {
+                id: "destinationMsisdn",
+                label: "Destination MSISDN",
+                type: "isdn",
+                defaultTon: "91",
+                required: false,
+                dependsOn: { field: "destinationChoice", value: "msisdn" },
+              },
+              {
+                id: "serviceCentreAddress",
+                label: "Service Centre Address (RP-OA)",
+                type: "isdn",
+                defaultTon: "91",
+                required: true,
+              },
+              {
+                id: "smRpUi",
+                label: "SM-RP-UI (TPDU hex)",
+                type: "hex",
+                required: true,
+              },
+              {
+                id: "moreMessagesToSend",
+                label: "More messages to send",
+                type: "checkbox",
+                default: false,
+              },
+            ],
+            buildParams(values) {
+              const content = [];
+              const choice = values.destinationChoice || "imsi";
+              if (choice === "msisdn") {
+                if (!values.destinationMsisdn) {
+                  throw new Error("Destination MSISDN is required");
+                }
+                const msisdnTlv = tlv(
+                  "04",
+                  encodeIsdn(
+                    values.destinationMsisdn,
+                    values.destinationMsisdnTon || "91"
+                  )
+                );
+                content.push(tlv("a1", msisdnTlv));
+              } else {
+                if (!values.destinationImsi) {
+                  throw new Error("Destination IMSI is required");
+                }
+                const imsiTlv = tlv("04", encodeImsi(values.destinationImsi));
+                content.push(tlv("a0", imsiTlv));
+              }
+
+              if (!values.serviceCentreAddress) {
+                throw new Error("Service Centre Address is required");
+              }
+              const rpOa = tlv(
+                "a2",
+                tlv(
+                  "04",
+                  encodeIsdn(
+                    values.serviceCentreAddress,
+                    values.serviceCentreAddressTon || "91"
+                  )
+                )
+              );
+              content.push(rpOa);
+
+              const smRpUi = sanitizeHex(values.smRpUi || "");
+              if (!smRpUi) {
+                throw new Error("SM-RP-UI hex is required");
+              }
+              if (smRpUi.length % 2 !== 0) {
+                throw new Error("SM-RP-UI hex must have an even number of characters");
+              }
+              content.push(tlv("04", smRpUi));
+
+              if (values.moreMessagesToSend) {
+                content.push("800100");
+              }
+
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+
+              return tlv("30", content.join(""));
+            },
+          },
+          reportSMDeliveryStatus: {
+            label: "reportSM-DeliveryStatus",
+            defaultCode: 47,
+            defaultAppContext: "0.4.0.0.1.0.1.1.1.13.3",
+            description: "Report SMS delivery outcome",
+            fields: [
+              {
+                id: "msisdn",
+                label: "MSISDN",
+                type: "isdn",
+                defaultTon: "91",
+                required: true,
+              },
+              {
+                id: "serviceCentreAddress",
+                label: "Service Centre Address",
+                type: "isdn",
+                defaultTon: "91",
+                required: true,
+              },
+              {
+                id: "deliveryOutcome",
+                label: "Delivery Outcome",
+                type: "select",
+                options: [
+                  { value: "0", label: "MemoryAvailable" },
+                  { value: "1", label: "MemoryCapacityExceeded" },
+                  { value: "2", label: "AbsentSubscriber" },
+                  { value: "3", label: "BusySubscriber" },
+                  { value: "4", label: "SystemFailure" },
+                  { value: "5", label: "DataMissing" },
+                  { value: "6", label: "UnexpectedDataValue" },
+                ],
+                default: "0",
+              },
+              {
+                id: "smDeliveryTime",
+                label: "SM Delivery Time (YYMMDDhhmmss, digits)",
+                type: "text",
+                placeholder: "e.g. 240501123045",
+                required: false,
+              },
+            ],
+            buildParams(values) {
+              if (!values.msisdn) {
+                throw new Error("MSISDN is required");
+              }
+              if (!values.serviceCentreAddress) {
+                throw new Error("Service Centre Address is required");
+              }
+              const content = [];
+              content.push(
+                tlv("04", encodeIsdn(values.msisdn, values.msisdnTon || "91"))
+              );
+              content.push(
+                tlv(
+                  "80",
+                  encodeIsdn(
+                    values.serviceCentreAddress,
+                    values.serviceCentreAddressTon || "91"
+                  )
+                )
+              );
+              const outcome = parseNumber(values.deliveryOutcome || "0") || 0;
+              content.push(tlv("81", encodeInteger(outcome)));
+
+              if (values.smDeliveryTime) {
+                const tbcd = encodeDigitsToTbcd(values.smDeliveryTime);
+                content.push(tlv("82", tbcd));
+              }
+
+              const customHex = sanitizeHex(values.customParameterHex || "");
+              if (customHex) {
+                content.push(customHex);
+              }
+
+              return tlv("30", content.join(""));
+            },
+          },
+        };
+
+        const form = document.getElementById("tcap-form");
+        const operationSelect = document.getElementById("operation");
+        const invokeIdInput = document.getElementById("invoke-id");
+        const operationCodeInput = document.getElementById("operation-code");
+        const otidInput = document.getElementById("otid");
+        const applicationContextSelect = document.getElementById("application-context");
+        const applicationContextCustomInput = document.getElementById("application-context-custom");
+        const protocolVersionInput = document.getElementById("protocol-version");
+        const parameterContainer = document.getElementById("operation-fields");
+        const outputArea = document.getElementById("hex-output");
+        const statusArea = document.getElementById("status");
+        const breakdownArea = document.getElementById("breakdown");
+        const copyButton = document.getElementById("copy-hex");
+        const resetButton = document.getElementById("reset-form");
+        const customParameterHex = document.getElementById("custom-parameter-hex");
+
+        const renderOperationOptions = () => {
+          Object.keys(operations).forEach((key) => {
+            const option = document.createElement("option");
+            option.value = key;
+            option.textContent = operations[key].label;
+            operationSelect.appendChild(option);
+          });
+        };
+
+        const renderApplicationContexts = () => {
+          applicationContextSelect.innerHTML = "";
+          applicationContexts.forEach((ctx) => {
+            const option = document.createElement("option");
+            option.value = ctx.value;
+            option.textContent = `${ctx.label} (${ctx.value})`;
+            applicationContextSelect.appendChild(option);
+          });
+        };
+
+        const getSelectedApplicationContext = () => {
+          const selectedValue = applicationContextSelect.value;
+          if (selectedValue === "__custom__") {
+            const custom = applicationContextCustomInput.value.trim();
+            if (!custom) {
+              throw new Error("Please provide a custom Application Context OID");
+            }
+            return custom;
+          }
+          return selectedValue;
+        };
+
+        const createInput = (field) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "field";
+
+          if (field.type === "checkbox") {
+            wrapper.classList.add("checkbox-field");
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.id = field.id;
+            input.name = field.id;
+            input.checked = !!field.default;
+            input.dataset.fieldId = field.id;
+
+            const label = document.createElement("label");
+            label.htmlFor = field.id;
+            label.textContent = field.label;
+
+            wrapper.appendChild(input);
+            wrapper.appendChild(label);
+            return wrapper;
+          }
+
+          const label = document.createElement("label");
+          label.htmlFor = field.id;
+          label.textContent = field.label;
+          wrapper.appendChild(label);
+
+          if (field.type === "select") {
+            const select = document.createElement("select");
+            select.id = field.id;
+            select.name = field.id;
+            select.dataset.fieldId = field.id;
+            if (field.options) {
+              field.options.forEach((opt) => {
+                const option = document.createElement("option");
+                option.value = opt.value;
+                option.textContent = opt.label;
+                select.appendChild(option);
+              });
+            }
+            if (field.default !== undefined) {
+              select.value = field.default;
+            }
+            wrapper.appendChild(select);
+          } else if (field.type === "isdn") {
+            const group = document.createElement("div");
+            group.className = "isdn-group";
+
+            const digits = document.createElement("input");
+            digits.type = "text";
+            digits.id = field.id;
+            digits.name = field.id;
+            digits.placeholder = field.placeholder || "";
+            digits.dataset.fieldId = field.id;
+            digits.dataset.fieldType = "isdn";
+            if (field.required) {
+              digits.required = true;
+            }
+            group.appendChild(digits);
+
+            const tonWrapper = document.createElement("div");
+            tonWrapper.className = "field ton-field";
+            const tonLabel = document.createElement("label");
+            tonLabel.textContent = "TON/NPI";
+            tonLabel.htmlFor = `${field.id}-ton`;
+            const tonInput = document.createElement("input");
+            tonInput.type = "text";
+            tonInput.id = `${field.id}-ton`;
+            tonInput.name = `${field.id}Ton`;
+            tonInput.dataset.tonFor = field.id;
+            tonInput.placeholder = "91";
+            tonInput.value = field.defaultTon || "91";
+            tonWrapper.appendChild(tonLabel);
+            tonWrapper.appendChild(tonInput);
+
+            group.appendChild(tonWrapper);
+            wrapper.appendChild(group);
+          } else {
+            let input;
+            if (field.type === "hex" || field.type === "textarea") {
+              input = document.createElement("textarea");
+            } else {
+              input = document.createElement("input");
+              input.type = field.type === "number" ? "number" : "text";
+            }
+            input.id = field.id;
+            input.name = field.id;
+            input.dataset.fieldId = field.id;
+            input.placeholder = field.placeholder || "";
+            if (field.type === "number") {
+              if (field.min !== undefined) input.min = field.min;
+              if (field.max !== undefined) input.max = field.max;
+            }
+            if (field.required) {
+              input.required = true;
+            }
+            if (field.default !== undefined && field.type !== "textarea") {
+              input.value = field.default;
+            }
+            wrapper.appendChild(input);
+          }
+
+          if (field.help) {
+            const help = document.createElement("div");
+            help.className = "help";
+            help.textContent = field.help;
+            wrapper.appendChild(help);
+          }
+
+          if (field.dependsOn) {
+            wrapper.dataset.dependsOn = field.dependsOn.field;
+            wrapper.dataset.dependsValue = field.dependsOn.value;
+          }
+
+          return wrapper;
+        };
+
+        const renderFields = (operationKey) => {
+          parameterContainer.innerHTML = "";
+          const op = operations[operationKey];
+          if (!op) {
+            return;
+          }
+          op.fields.forEach((field) => {
+            const input = createInput(field);
+            parameterContainer.appendChild(input);
+          });
+          applyFieldDependencies();
+        };
+
+        const applyFieldDependencies = () => {
+          const fields = parameterContainer.querySelectorAll(".field");
+          fields.forEach((fieldWrapper) => {
+            const dependsOn = fieldWrapper.dataset.dependsOn;
+            const dependsValue = fieldWrapper.dataset.dependsValue;
+            if (dependsOn) {
+              const control = parameterContainer.querySelector(
+                `[data-field-id="${dependsOn}"]`
+              );
+              if (!control) {
+                return;
+              }
+              const updateVisibility = () => {
+                const currentValue = control.type === "checkbox" ? control.checked.toString() : control.value;
+                if (currentValue === dependsValue) {
+                  fieldWrapper.classList.remove("hidden");
+                } else {
+                  fieldWrapper.classList.add("hidden");
+                }
+              };
+              control.addEventListener("change", updateVisibility);
+              updateVisibility();
+            }
+          });
+        };
+
+        const collectFieldValues = (operationKey) => {
+          const op = operations[operationKey];
+          const values = {};
+          if (!op) {
+            return values;
+          }
+
+          op.fields.forEach((field) => {
+            if (field.type === "checkbox") {
+              const input = parameterContainer.querySelector(`#${field.id}`);
+              values[field.id] = !!(input && input.checked);
+            } else if (field.type === "isdn") {
+              const digitsInput = parameterContainer.querySelector(`#${field.id}`);
+              const tonInput = parameterContainer.querySelector(`#${field.id}-ton`);
+              if (!digitsInput) {
+                return;
+              }
+              values[field.id] = digitsInput.value.trim();
+              values[`${field.id}Ton`] = tonInput ? tonInput.value.trim() : "91";
+            } else {
+              const input = parameterContainer.querySelector(`[data-field-id="${field.id}"]`);
+              if (input) {
+                if (field.type === "number") {
+                  values[field.id] = input.value === "" ? "" : Number(input.value);
+                } else {
+                  values[field.id] = input.value.trim();
+                }
+              }
+            }
+          });
+
+          values.customParameterHex = customParameterHex.value;
+          return values;
+        };
+
+        const buildDialogPortion = (appContextOid, protocolVersionHex) => {
+          const directReferenceOid = "00118605010101";
+          const directReference = tlv("06", directReferenceOid);
+          const applicationContextName = tlv(
+            "a1",
+            tlv("06", encodeOid(appContextOid))
+          );
+          const protocolVersion = tlv("80", sanitizeHex(protocolVersionHex || "0780") || "0780");
+          const aarq = tlv("60", protocolVersion + applicationContextName);
+          const singleAsn1 = tlv("a0", aarq);
+          const external = tlv("28", directReference + singleAsn1);
+          return tlv("6b", external);
+        };
+
+        const buildComponentPortion = (invokeId, operationCode, parameterHex) => {
+          const invokeIdHex = encodeInteger(invokeId || 0);
+          const operationCodeHex = encodeInteger(operationCode);
+          const parts = [tlv("02", invokeIdHex), tlv("02", operationCodeHex)];
+          if (parameterHex) {
+            parts.push(parameterHex);
+          }
+          const invokeComponent = tlv("a1", parts.join(""));
+          return {
+            invokeComponent,
+            componentPortion: tlv("6c", invokeComponent),
+          };
+        };
+
+        const buildMessage = (operationKey, values) => {
+          const op = operations[operationKey];
+          if (!op) {
+            throw new Error(`Operation ${operationKey} is not defined`);
+          }
+
+          const otidHex = sanitizeHex(otidInput.value);
+          if (!otidHex || otidHex.length !== 8) {
+            throw new Error("OTID must be 4 bytes (8 hex characters)");
+          }
+
+          const parameterHex = op.buildParams({ ...values }, helpers);
+          const appContextFromUi = getSelectedApplicationContext();
+          const appContextOid = appContextFromUi || op.defaultAppContext;
+          if (!appContextOid) {
+            throw new Error("Application Context OID is required");
+          }
+          const dialogPortion = buildDialogPortion(
+            appContextOid,
+            protocolVersionInput.value || "0780"
+          );
+
+          const operationCodeValue = parseNumber(operationCodeInput.value) ?? op.defaultCode;
+          const invokeIdValue = invokeIdInput.value === "" ? 0 : Number(invokeIdInput.value);
+
+          const component = buildComponentPortion(
+            invokeIdValue,
+            operationCodeValue,
+            parameterHex
+          );
+          const otidTlv = tlv("48", otidHex);
+          const tcapBody = otidTlv + dialogPortion + component.componentPortion;
+          const tcap = tlv("62", tcapBody);
+
+          return {
+            otid: otidTlv,
+            dialog: dialogPortion,
+            component: component.componentPortion,
+            invokeComponent: component.invokeComponent,
+            parameter: parameterHex,
+            full: tcap,
+          };
+        };
+
+        const updateBreakdown = (parts) => {
+          breakdownArea.innerHTML = "";
+          const fragments = [
+            { title: "Begin", value: parts.full },
+            { title: "OTID", value: parts.otid },
+            { title: "Dialog Portion", value: parts.dialog },
+            { title: "Component Portion", value: parts.component },
+            { title: "Invoke Component", value: parts.invokeComponent },
+            { title: "MAP Argument", value: parts.parameter },
+          ];
+          fragments.forEach((fragment) => {
+            if (!fragment.value) {
+              return;
+            }
+            const block = document.createElement("div");
+            block.className = "breakdown-block";
+            const title = document.createElement("h3");
+            title.textContent = fragment.title;
+            const code = document.createElement("code");
+            code.textContent = chunkHex(fragment.value, 2);
+            block.appendChild(title);
+            block.appendChild(code);
+            breakdownArea.appendChild(block);
+          });
+        };
+
+        const handleGenerate = (event) => {
+          event.preventDefault();
+          statusArea.innerHTML = "";
+          try {
+            const operationKey = operationSelect.value;
+            const fieldValues = collectFieldValues(operationKey);
+            const parts = buildMessage(operationKey, fieldValues);
+            outputArea.value = chunkHex(parts.full, 2);
+            updateBreakdown(parts);
+            const success = document.createElement("div");
+            success.className = "success";
+            const op = operations[operationKey];
+            success.textContent = `Generated MAP ${op.label} invoke (${parts.full.length / 2} bytes).`;
+            statusArea.appendChild(success);
+          } catch (error) {
+            outputArea.value = "";
+            breakdownArea.innerHTML = "";
+            const alert = document.createElement("div");
+            alert.className = "alert";
+            alert.textContent = error.message;
+            statusArea.appendChild(alert);
+          }
+        };
+
+        const handleCopy = async () => {
+          const text = outputArea.value.trim();
+          if (!text) {
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(text.replace(/\s+/g, ""));
+            const message = document.createElement("div");
+            message.className = "success";
+            message.textContent = "Hex stream copied to clipboard (spaces stripped).";
+            statusArea.appendChild(message);
+          } catch (error) {
+            const alert = document.createElement("div");
+            alert.className = "alert";
+            alert.textContent = `Unable to copy: ${error.message}`;
+            statusArea.appendChild(alert);
+          }
+        };
+
+        const handleReset = () => {
+          form.reset();
+          otidInput.value = defaultOtid();
+          protocolVersionInput.value = "0780";
+          const operationKey = operationSelect.value;
+          const op = operations[operationKey];
+          operationCodeInput.value = op ? op.defaultCode : "";
+          initApplicationContextForOperation(op);
+          customParameterHex.value = "";
+          statusArea.innerHTML = "";
+          outputArea.value = "";
+          breakdownArea.innerHTML = "";
+          renderFields(operationKey);
+        };
+
+        const handleOperationChange = () => {
+          const operationKey = operationSelect.value;
+          const op = operations[operationKey];
+          if (op) {
+            operationCodeInput.value = op.defaultCode;
+            initApplicationContextForOperation(op);
+            customParameterHex.value = "";
+          }
+          renderFields(operationKey);
+        };
+
+        const initApplicationContextForOperation = (op) => {
+          if (!op) {
+            applicationContextSelect.value = applicationContexts[0]?.value || "";
+            applicationContextCustomInput.classList.add("hidden");
+            applicationContextCustomInput.value = "";
+            return;
+          }
+          const defaultContext = applicationContexts.find((ctx) => ctx.value === op.defaultAppContext);
+          if (defaultContext) {
+            applicationContextSelect.value = defaultContext.value;
+            applicationContextCustomInput.classList.add("hidden");
+            applicationContextCustomInput.value = "";
+          } else {
+            applicationContextSelect.value = "__custom__";
+            applicationContextCustomInput.classList.remove("hidden");
+            applicationContextCustomInput.value = op.defaultAppContext;
+          }
+        };
+
+        const init = () => {
+          renderOperationOptions();
+          renderApplicationContexts();
+          otidInput.value = defaultOtid();
+          protocolVersionInput.value = "0780";
+          operationSelect.value = "updateLocation";
+          initApplicationContextForOperation(operations["updateLocation"]);
+          handleOperationChange();
+
+          form.addEventListener("submit", handleGenerate);
+          operationSelect.addEventListener("change", handleOperationChange);
+          copyButton.addEventListener("click", handleCopy);
+          resetButton.addEventListener("click", handleReset);
+          applicationContextSelect.addEventListener("change", () => {
+            const selected = applicationContextSelect.value;
+            if (selected === "__custom__") {
+              applicationContextCustomInput.classList.remove("hidden");
+              applicationContextCustomInput.focus();
+            } else {
+              applicationContextCustomInput.classList.add("hidden");
+              applicationContextCustomInput.value = "";
+            }
+          });
+        };
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
+
