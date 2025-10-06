@@ -724,6 +724,7 @@
           { label: "mtForwardSMContext-v3", value: "0.4.0.0.1.0.1.1.1.12.3" },
           { label: "reportSM-DeliveryStatusContext-v3", value: "0.4.0.0.1.0.1.1.1.13.3" },
           { label: "reportSM-DeliveryOutcomeContext-v3", value: "0.4.0.0.1.0.1.1.1.14.3" },
+          { label: "infoRetrievalContext-v3", value: "0.4.0.0.1.0.14.3" },
           { label: "istAlertingContext-v3", value: "0.4.0.0.1.0.1.1.1.21.3" },
           { label: "callControlTransferContext-v3", value: "0.4.0.0.1.0.1.1.1.25.3" },
           { label: "Custom", value: "__custom__" },
@@ -799,7 +800,7 @@
           sendAuthenticationInfo: {
             label: "sendAuthenticationInfo",
             defaultCode: 56,
-            defaultAppContext: "0.4.0.0.1.0.1.3",
+            defaultAppContext: "0.4.0.0.1.0.14.3",
             description: "Request authentication vectors from HLR",
             fields: [
               {
@@ -818,7 +819,19 @@
                 min: 1,
                 max: 5,
                 required: true,
+                default: 4,
                 help: "Integer encoded as ASN.1 INTEGER.",
+              },
+              {
+                id: "requestingNodeType",
+                label: "Requesting Node Type",
+                type: "select",
+                options: [
+                  { value: "vlr", label: "VLR" },
+                  { value: "sgsn", label: "SGSN" },
+                ],
+                default: "vlr",
+                help: "Type of node requesting authentication vectors.",
               },
               {
                 id: "includeImmediateResponse",
@@ -831,12 +844,20 @@
               if (!values.imsi) {
                 throw new Error("IMSI is required for sendAuthenticationInfo");
               }
-              const content = [tlv("04", encodeImsi(values.imsi))];
-              if (values.numVectors !== undefined && values.numVectors !== "") {
-                content.push(tlv("02", encodeInteger(values.numVectors)));
-              }
+              const content = [tlv("80", encodeImsi(values.imsi))];
+              
+              // Number of requested vectors (default to 4 if not specified)
+              const numVectors = values.numVectors !== undefined && values.numVectors !== "" ? values.numVectors : 4;
+              content.push(tlv("02", encodeInteger(numVectors)));
+              
+              // Requesting Node Type (VLR = 0, SGSN = 1)
+              const requestingNodeType = values.requestingNodeType || "vlr";
+              const nodeTypeValue = requestingNodeType === "sgsn" ? 1 : 0;
+              content.push(tlv("83", encodeInteger(nodeTypeValue)));
+              
+              // Only include immediateResponsePreferred if explicitly set to true
               if (values.includeImmediateResponse) {
-                content.push("800100");
+                content.push(tlv("80", encodeInteger(1)));
               }
               const customHex = sanitizeHex(values.customParameterHex || "");
               if (customHex) {

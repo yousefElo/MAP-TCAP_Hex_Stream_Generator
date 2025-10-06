@@ -62,6 +62,7 @@ Manual testing is recommended: generate a hex stream with known parameters and c
 | mtForwardSMContext-v3                 | Mobile-Terminated SMS Forward | `0.4.0.0.1.0.1.1.1.12.3` |
 | reportSM-DeliveryStatusContext-v3     | Delivery Report               | `0.4.0.0.1.0.1.1.1.13.3` |
 | reportSM-DeliveryOutcomeContext-v3    | Outcome Report                | `0.4.0.0.1.0.1.1.1.14.3` |
+| infoRetrievalContext-v3               | Info Retrieval                | `0.4.0.0.1.0.14.3` |
 | istAlertingContext-v3                 | IST Alert                     | `0.4.0.0.1.0.1.1.1.21.3` |
 | callControlTransferContext-v3         | Call Control Transfer         | `0.4.0.0.1.0.1.1.1.25.3` |
 
