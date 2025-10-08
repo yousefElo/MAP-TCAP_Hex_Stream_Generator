@@ -6,6 +6,7 @@ This project provides a standalone web page (`index.html`) that lets you compose
 ## Features
 - Generate TCAP `Begin` messages for several MAP operations, including `updateLocation`, `sendAuthenticationInfo`, `sendRoutingInfo`, and SMS forwarding/reporting procedures
 - Automatic encoding of IMSI, ISDN, and other MAP argument fields to the correct TBCD/ASN.1 format
+- SMS text input mode: Enter SMS content as clear ASCII text instead of raw TPDU hex for MO/MT ForwardSM operations
 - Built-in catalog of MAP v3 Application Context OIDs with optional custom entry
 - Interactive breakdown showing the OTID, dialog portion, component portion, and MAP argument
 - Clipboard copy helper for direct use in external SS7 traffic simulators
@@ -60,10 +61,10 @@ Manual testing is recommended: generate a hex stream with known parameters and c
 | readyForSMContext-v3                  | Ready for Short Message       | `0.4.0.0.1.0.1.1.1.10.3` |
 | moForwardSMContext-v3                 | Mobile-Originated SMS Forward | `0.4.0.0.1.0.1.1.1.11.3` |
 | mtForwardSMContext-v3                 | Mobile-Terminated SMS Forward | `0.4.0.0.1.0.1.1.1.12.3` |
-| reportSM-DeliveryStatusContext-v3     | Delivery Report               | `0.4.0.0.1.0.1.1.1.13.3` |
+| reportSM-DeliveryStatusContext-v3     | Delivery Report (Legacy)      | `0.4.0.0.1.0.1.1.1.13.3` |
 | reportSM-DeliveryOutcomeContext-v3    | Outcome Report                | `0.4.0.0.1.0.1.1.1.14.3` |
-| infoRetrievalContext-v3               | Info Retrieval                | `0.4.0.0.1.0.14.3` |
-| shortMsgGatewayContext-v3             | Short Message Gateway         | `0.4.0.0.1.0.20.3` |
+| infoRetrievalContext-v3               | Send Authentication Info      | `0.4.0.0.1.0.14.3` |
+| shortMsgGatewayContext-v3             | Report SM Delivery Status     | `0.4.0.0.1.0.20.3` |
 | istAlertingContext-v3                 | IST Alert                     | `0.4.0.0.1.0.1.1.1.21.3` |
 | callControlTransferContext-v3         | Call Control Transfer         | `0.4.0.0.1.0.1.1.1.25.3` |
 
