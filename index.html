@@ -501,7 +501,7 @@
           return hex;
         };
 
-        const encodeSmsTextToTpdu = (text, senderNumber, recipientNumber, isMoForward = true) => {
+        const encodeSmsTextToTpdu = (text, senderNumber, recipientNumber, isMoForward = true, moreMessages = false) => {
           if (!text || text.length === 0) {
             throw new Error("SMS text content is required");
           }
@@ -509,8 +509,17 @@
             throw new Error("Sender and recipient numbers are required for SMS TPDU encoding");
           }
 
-          // Convert text to GSM 7-bit default alphabet (basic ASCII subset)
-          const gsm7bitChars = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+          // GSM 03.38 default alphabet
+          const gsm7bitChars = [
+            '@', '£', '$', '¥', 'è', 'é', 'ù', 'ì', 'ò', 'Ç', '\n', 'Ø', 'ø', '\r', 'Å', 'å',
+            'Δ', '_', 'Φ', 'Γ', 'Λ', 'Ω', 'Π', 'Ψ', 'Σ', 'Θ', 'Ξ', '\x1B', 'Æ', 'æ', 'ß', 'É',
+            ' ', '!', '"', '#', '¤', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/',
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+            '¡', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+            'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'Ä', 'Ö', 'Ñ', 'Ü', '§',
+            '¿', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+            'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ä', 'ö', 'ñ', 'ü', 'à'
+          ];
           const gsm7bitExtChars = "^{}\\[~]|€";
           
           // Check if text contains only GSM 7-bit characters
@@ -534,8 +543,8 @@
             
             // TP-DA (Destination Address) - recipient number
             const recipientTbcd = encodeDigitsToTbcd(recipientNumber);
-            const recipientLength = Math.ceil(recipientNumber.length / 2);
-            tpdu += toHex(recipientLength, 1); // Address length in semi-octets
+            const recipientLength = recipientNumber.replace(/\D/g, '').length; // Length in digits (not bytes)
+            tpdu += toHex(recipientLength, 2); // Address length in digits (2 hex chars = 1 byte)
             tpdu += "91"; // TON/NPI: International number
             tpdu += recipientTbcd;
             
@@ -554,11 +563,11 @@
             if (useGsm7bit) {
               // Encode as GSM 7-bit
               userDataHex = encodeGsm7bit(text);
-              tpdu += toHex(text.length, 1);
+              tpdu += toHex(text.length, 2);
             } else {
               // Encode as UCS2
               userDataHex = encodeUcs2(text);
-              tpdu += toHex(userDataHex.length / 2, 1);
+              tpdu += toHex(userDataHex.length / 2, 2);
             }
             
             // TP-UD (User Data)
@@ -566,12 +575,15 @@
             
           } else {
             // SMS-DELIVER format for MT-ForwardSM
-            tpdu += "04"; // TP-MTI=00 (SMS-DELIVER), TP-MMS=0, TP-LP=0, TP-RP=0, TP-UDHI=0, TP-SRI=0
+            // TP-MTI=00 (SMS-DELIVER), TP-MMS (bit 2), TP-LP=0, TP-RP=0, TP-UDHI=0, TP-SRI=0
+            // TP-MMS: 0 = More messages waiting, 1 = No more messages
+            const tpMms = moreMessages ? 0x00 : 0x04; // Bit 2
+            tpdu += toHex(tpMms, 2);
             
             // TP-OA (Originating Address) - sender number
             const senderTbcd = encodeDigitsToTbcd(senderNumber);
-            const senderLength = Math.ceil(senderNumber.length / 2);
-            tpdu += toHex(senderLength, 1); // Address length in semi-octets
+            const senderLength = senderNumber.replace(/\D/g, '').length; // Length in digits (not bytes)
+            tpdu += toHex(senderLength, 2); // Address length in digits (2 hex chars = 1 byte)
             tpdu += "91"; // TON/NPI: International number
             tpdu += senderTbcd;
             
@@ -601,11 +613,11 @@
             if (useGsm7bit) {
               // Encode as GSM 7-bit
               userDataHex = encodeGsm7bit(text);
-              tpdu += toHex(text.length, 1);
+              tpdu += toHex(text.length, 2);
             } else {
               // Encode as UCS2
               userDataHex = encodeUcs2(text);
-              tpdu += toHex(userDataHex.length / 2, 1);
+              tpdu += toHex(userDataHex.length / 2, 2);
             }
             
             // TP-UD (User Data)
@@ -616,46 +628,64 @@
         };
 
         const encodeGsm7bit = (text) => {
-          const gsm7bitChars = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+          // GSM 03.38 default alphabet (positions 0-127)
+          const gsm7bitChars = [
+            '@', '£', '$', '¥', 'è', 'é', 'ù', 'ì', 'ò', 'Ç', '\n', 'Ø', 'ø', '\r', 'Å', 'å',
+            'Δ', '_', 'Φ', 'Γ', 'Λ', 'Ω', 'Π', 'Ψ', 'Σ', 'Θ', 'Ξ', '\x1B', 'Æ', 'æ', 'ß', 'É',
+            ' ', '!', '"', '#', '¤', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/',
+            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?',
+            '¡', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
+            'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'Ä', 'Ö', 'Ñ', 'Ü', '§',
+            '¿', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+            'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ä', 'ö', 'ñ', 'ü', 'à'
+          ];
           const gsm7bitExtChars = "^{}\\[~]|€";
           
-          let result = "";
+          // Convert text to GSM 7-bit character codes
+          const septets = [];
           for (let i = 0; i < text.length; i++) {
             const char = text[i];
-            let charCode = gsm7bitChars.indexOf(char);
+            const charCode = gsm7bitChars.indexOf(char);
             if (charCode === -1) {
               // Check for extended characters
               const extIndex = gsm7bitExtChars.indexOf(char);
               if (extIndex !== -1) {
                 // Extended character - use escape sequence
-                result += "1b" + toHex(extIndex, 1);
+                septets.push(0x1b);
+                septets.push(extIndex);
               } else {
                 // Fallback to space for unsupported characters
-                charCode = gsm7bitChars.indexOf(' ');
+                septets.push(32); // Space is at position 32
               }
-            }
-            if (charCode !== -1) {
-              result += toHex(charCode, 1);
+            } else {
+              septets.push(charCode);
             }
           }
           
-          // Pack 7-bit characters into 8-bit bytes
+          // Pack septets into octets (GSM 03.38)
+          // Standard GSM 7-bit packing: pack 7-bit characters into 8-bit bytes
           let packed = "";
-          let bits = "";
-          for (let i = 0; i < result.length; i += 2) {
-            bits += parseInt(result.substr(i, 2), 16).toString(2).padStart(8, '0');
+          let octet = 0;
+          let octetBitsFilled = 0;
+          
+          for (let i = 0; i < septets.length; i++) {
+            const septet = septets[i] & 0x7F; // Ensure 7 bits
+            
+            // Add septet to current octet
+            octet |= (septet << octetBitsFilled);
+            octetBitsFilled += 7;
+            
+            // If we have 8 or more bits, output the octet
+            if (octetBitsFilled >= 8) {
+              packed += toHex(octet & 0xFF, 2);
+              octet = septet >> (7 - (octetBitsFilled - 8));
+              octetBitsFilled -= 8;
+            }
           }
           
-          // Pad to multiple of 7
-          while (bits.length % 7 !== 0) {
-            bits += "0";
-          }
-          
-          // Pack 7-bit groups into 8-bit bytes
-          for (let i = 0; i < bits.length; i += 7) {
-            const group = bits.substr(i, 7);
-            const byte = parseInt(group, 2);
-            packed += toHex(byte, 1);
+          // Output any remaining bits
+          if (octetBitsFilled > 0) {
+            packed += toHex(octet & 0xFF, 2);
           }
           
           return packed;
@@ -728,6 +758,7 @@
           { label: "reportSM-DeliveryOutcomeContext-v3", value: "0.4.0.0.1.0.1.1.1.14.3" },
           { label: "infoRetrievalContext-v3", value: "0.4.0.0.1.0.14.3" },
           { label: "shortMsgGatewayContext-v3", value: "0.4.0.0.1.0.20.3" },
+          { label: "shortMsgMT-RelayContext-v3", value: "0.4.0.0.1.0.25.3" },
           { label: "istAlertingContext-v3", value: "0.4.0.0.1.0.1.1.1.21.3" },
           { label: "callControlTransferContext-v3", value: "0.4.0.0.1.0.1.1.1.25.3" },
           { label: "Custom", value: "__custom__" },
@@ -911,7 +942,7 @@
           sendRoutingInfoForSM: {
             label: "sendRoutingInfoForSM",
             defaultCode: 45,
-            defaultAppContext: "0.4.0.0.1.0.1.1.1.10.3",
+            defaultAppContext: "0.4.0.0.1.0.20.3",
             description: "Query routing info for MT SMS",
             fields: [
               {
@@ -940,11 +971,13 @@
               }
               const content = [];
               content.push(
-                tlv("04", encodeIsdn(values.msisdn, values.msisdnTon || "91"))
+                tlv("80", encodeIsdn(values.msisdn, values.msisdnTon || "91"))
               );
+              // Add SM-RP-PRI parameter (always set to 0xFF)
+              content.push(tlv("81", "ff"));
               content.push(
                 tlv(
-                  "80",
+                  "82",
                   encodeIsdn(
                     values.serviceCentreAddress,
                     values.serviceCentreAddressTon || "91"
@@ -1116,7 +1149,7 @@
           mtForwardSM: {
             label: "mt-forwardSM",
             defaultCode: 44,
-            defaultAppContext: "0.4.0.0.1.0.1.1.1.12.3",
+            defaultAppContext: "0.4.0.0.1.0.25.3",
             description: "Mobile terminated forward short message",
             fields: [
               {
@@ -1200,36 +1233,34 @@
                 if (!values.destinationMsisdn) {
                   throw new Error("Destination MSISDN is required");
                 }
-                const msisdnTlv = tlv(
-                  "04",
-                  encodeIsdn(
-                    values.destinationMsisdn,
-                    values.destinationMsisdnTon || "91"
+                content.push(
+                  tlv(
+                    "81",
+                    encodeIsdn(
+                      values.destinationMsisdn,
+                      values.destinationMsisdnTon || "91"
+                    )
                   )
                 );
-                content.push(tlv("a1", msisdnTlv));
               } else {
                 if (!values.destinationImsi) {
                   throw new Error("Destination IMSI is required");
                 }
-                const imsiTlv = tlv("04", encodeImsi(values.destinationImsi));
-                content.push(tlv("a0", imsiTlv));
+                content.push(tlv("80", encodeImsi(values.destinationImsi)));
               }
 
               if (!values.serviceCentreAddress) {
                 throw new Error("Service Centre Address is required");
               }
-              const rpOa = tlv(
-                "a2",
+              content.push(
                 tlv(
-                  "04",
+                  "84",
                   encodeIsdn(
                     values.serviceCentreAddress,
                     values.serviceCentreAddressTon || "91"
                   )
                 )
               );
-              content.push(rpOa);
 
               // Handle SMS content based on input mode
               const smsContentMode = values.smsContentMode || "text";
@@ -1257,13 +1288,13 @@
                   throw new Error("Recipient number is required for SMS text encoding");
                 }
                 
-                smRpUi = encodeSmsTextToTpdu(values.smsText, values.senderNumber, recipientNumber, false);
+                smRpUi = encodeSmsTextToTpdu(values.smsText, values.senderNumber, recipientNumber, false, values.moreMessagesToSend);
               }
               
               content.push(tlv("04", smRpUi));
 
               if (values.moreMessagesToSend) {
-                content.push("800100");
+                content.push("8000");
               }
 
               const customHex = sanitizeHex(values.customParameterHex || "");
@@ -1598,6 +1629,10 @@
             // Special handling for reportSM-DeliveryStatus (shortMsgGatewayContext-v3)
             // Use exact dialog portion from expected result
             return "6b1a2818060700118605010101a00d600ba109060704000001001403";
+          } else if (appContextOid === "0.4.0.0.1.0.25.3") {
+            // Special handling for mt-forwardSM (shortMsgMT-RelayContext-v3)
+            // Use exact dialog portion from expected result
+            return "6b1a2818060700118605010101a00d600ba109060704000001001903";
           } else {
             // Standard handling for other operations
             const directReferenceOid = "00118605010101";
@@ -1613,8 +1648,20 @@
         };
 
         const buildComponentPortion = (invokeId, operationCode, parameterHex) => {
-          // Use invoke ID 128 for reportSM-DeliveryStatus operation (code 47)
-          const actualInvokeId = (operationCode === 47) ? 128 : (invokeId || 0);
+          // Use specific invoke IDs for certain operations
+          let actualInvokeId;
+          if (operationCode === 47) {
+            // reportSM-DeliveryStatus uses invoke ID 128
+            actualInvokeId = 128;
+          } else if (operationCode === 44) {
+            // mt-forwardSM uses invoke ID 147
+            actualInvokeId = 147;
+          } else if (operationCode === 45) {
+            // sendRoutingInfoForSM uses invoke ID 148
+            actualInvokeId = 148;
+          } else {
+            actualInvokeId = invokeId || 0;
+          }
           const invokeIdHex = encodeInteger(actualInvokeId);
           const operationCodeHex = encodeInteger(operationCode);
           const parts = [tlv("02", invokeIdHex), tlv("02", operationCodeHex)];

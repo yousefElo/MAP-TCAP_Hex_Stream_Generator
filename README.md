@@ -6,8 +6,12 @@ This project provides a standalone web page (`index.html`) that lets you compose
 ## Features
 - Generate TCAP `Begin` messages for several MAP operations, including `updateLocation`, `sendAuthenticationInfo`, `sendRoutingInfo`, and SMS forwarding/reporting procedures
 - Automatic encoding of IMSI, ISDN, and other MAP argument fields to the correct TBCD/ASN.1 format
-- SMS text input mode: Enter SMS content as clear ASCII text instead of raw TPDU hex for MO/MT ForwardSM operations
+- **SMS text input mode**: Enter SMS content as clear ASCII text instead of raw TPDU hex for MO/MT ForwardSM operations
+  - Automatic GSM 7-bit encoding with proper septet packing
+  - Automatic UCS2 encoding for Unicode characters
+  - Support for TP-MMS (More Messages to Send) flag in MT-ForwardSM
 - Built-in catalog of MAP v3 Application Context OIDs with optional custom entry
+- **Network-validated encoding**: Operations configured to match live network implementations
 - Interactive breakdown showing the OTID, dialog portion, component portion, and MAP argument
 - Clipboard copy helper for direct use in external SS7 traffic simulators
 
@@ -25,6 +29,24 @@ No external packages are needed. All logic and styling are contained within `ind
 4. Adjust the application context if necessary using the provided list or choose **Custom** to enter an alternate OID.
 5. Click **Generate Hex Stream** to produce the TCAP message.
 6. Copy the hex output using the **Copy Hex** button and paste it into your SS7/TCAP simulator workflow.
+
+## Operation-Specific Configuration
+
+The following MAP operations have been configured to match live network implementations:
+
+### SMS Operations
+- **sendAuthenticationInfo** (code 56): Uses `infoRetrievalContext-v3` (OID: `0.4.0.0.1.0.14.3`) with automatic invoke ID 0 and requesting node type parameter
+- **sendRoutingInfoForSM** (code 45): Uses `shortMsgGatewayContext-v3` (OID: `0.4.0.0.1.0.20.3`) with automatic invoke ID 148 and SM-RP-PRI parameter
+- **mt-forwardSM** (code 44): Uses `shortMsgMT-RelayContext-v3` (OID: `0.4.0.0.1.0.25.3`) with automatic invoke ID 147
+- **reportSM-DeliveryStatus** (code 47): Uses `shortMsgGatewayContext-v3` (OID: `0.4.0.0.1.0.20.3`) with automatic invoke ID 128
+
+### SMS Text Input Mode
+For MO/MT ForwardSM operations, you can choose between:
+- **TPDU Hex mode**: Enter raw SM-RP-UI hex directly
+- **SMS Text mode**: Enter clear ASCII text which is automatically encoded to:
+  - GSM 7-bit default alphabet for standard characters
+  - UCS2 (16-bit) for Unicode characters
+  - Proper SMS TPDU format (SMS-SUBMIT for MO, SMS-DELIVER for MT)
 
 ## Customization
 - **Additional operations**: Extend the `operations` object in `index.html` with new field definitions and encoding logic.
@@ -64,7 +86,8 @@ Manual testing is recommended: generate a hex stream with known parameters and c
 | reportSM-DeliveryStatusContext-v3     | Delivery Report (Legacy)      | `0.4.0.0.1.0.1.1.1.13.3` |
 | reportSM-DeliveryOutcomeContext-v3    | Outcome Report                | `0.4.0.0.1.0.1.1.1.14.3` |
 | infoRetrievalContext-v3               | Send Authentication Info      | `0.4.0.0.1.0.14.3` |
-| shortMsgGatewayContext-v3             | Report SM Delivery Status     | `0.4.0.0.1.0.20.3` |
+| shortMsgGatewayContext-v3             | SMS Gateway Operations        | `0.4.0.0.1.0.20.3` |
+| shortMsgMT-RelayContext-v3            | MT Forward SMS Relay          | `0.4.0.0.1.0.25.3` |
 | istAlertingContext-v3                 | IST Alert                     | `0.4.0.0.1.0.1.1.1.21.3` |
 | callControlTransferContext-v3         | Call Control Transfer         | `0.4.0.0.1.0.1.1.1.25.3` |
 
